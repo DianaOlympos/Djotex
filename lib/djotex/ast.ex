@@ -4,15 +4,12 @@ defmodule Djotex.Ast do
 
   defmodule SourceLoc do
     defstruct line: 0, col: 0, offset: 0
-    @enforce_keys [:line, :col, :offset]
 
     @type t :: %__MODULE__{line: integer(), col: integer(), offset: integer()}
   end
 
   defmodule Position do
     defstruct start: %SourceLoc{}, end: %SourceLoc{}
-
-    @enforce_keys [:start, :end]
 
     @type t :: %__MODULE__{start: SourceLoc.t(), end: SourceLoc.t()}
   end
@@ -39,13 +36,17 @@ defmodule Djotex.Ast do
             | Ast.Block.DefinitionList.t()
             | Ast.Block.Table.t()
 
+    def cleanup_last_line(string) do
+      String.trim_trailing(string, "\n")
+    end
+
     defmodule Para do
       defstruct children: [], attributes: []
 
       @type t :: %__MODULE__{children: [Ast.Inline.t()], attributes: [Ast.Attributes.t()]}
 
-      def to_para(iolist, attributes) do
-        %__MODULE__{children: Enum.join(iolist), attributes: attributes}
+      def to_ast([{:inline_text, string}], attributes) do
+        %__MODULE__{children: Block.cleanup_last_line(Enum.join(string)), attributes: attributes}
       end
     end
 
@@ -57,6 +58,25 @@ defmodule Djotex.Ast do
               children: [Ast.Inline.t()],
               attributes: [Ast.Attributes.t()]
             }
+      def to_ast([{:heading_level, level}, {:inline_text, string}], attributes) do
+        prefix = String.duplicate("#", level)
+
+        children =
+          string
+          |> Enum.map(fn x ->
+            if String.starts_with?(x, prefix) do
+              String.trim_leading(x, prefix <> " ")
+            else
+              x
+            end
+          end)
+
+        %__MODULE__{
+          children: Block.cleanup_last_line(Enum.join(children)),
+          level: level,
+          attributes: attributes
+        }
+      end
     end
 
     defmodule ThematicBreak do

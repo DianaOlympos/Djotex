@@ -6,7 +6,7 @@ defmodule Djotex do
   @doc """
   Hello world.
   """
-  def parse_to_events(string) do
-    Djotex.Events.events(string)
+  def parse_to_ast(string) do
+    Djotex.Parser.ast(string)
   end
 end
